@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>25 + 5 Clock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <style>
+    body { background:#0d1117; color:#f0f6fc; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    #clock { background:#161b22; padding:2rem; border-radius:0.5rem; box-shadow:0 0 10px rgba(0,0,0,.6); width:360px; }
+    #time-left { font-size:3rem; font-weight:bold; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+
+<script>
+const { useState, useEffect, useRef } = React;
+
+function Clock() {
+  const [breakLen, setBreakLen] = useState(5);
+  const [sessionLen, setSessionLen] = useState(25);
+  const [timeLeft, setTimeLeft] = useState(25 * 60); // seconds
+  const [mode, setMode] = useState('Session');
+  const [running, setRunning] = useState(false);
+  const intervalRef = useRef(null);
+  const beepRef = useRef(null);
+
+  const format = secs => `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+
+  // Helper to start / stop interval
+  const startInterval = () => intervalRef.current = setInterval(() => {
+    setTimeLeft(prev => {
+      if (prev === 0) {
+        // play beep exactly at 00:00
+        if (beepRef.current) {
+          beepRef.current.currentTime = 0;
+          beepRef.current.play();
+        }
+        // switch mode & load next timer full length
+        setMode(m => m === 'Session' ? 'Break' : 'Session');
+        return (mode === 'Session' ? breakLen : sessionLen) * 60; // mode still previous here
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  const clearTimer = () => { clearInterval(intervalRef.current); intervalRef.current=null; };
+
+  const reset = () => {
+    clearTimer();
+    setRunning(false);
+    setBreakLen(5);
+    setSessionLen(25);
+    setMode('Session');
+    setTimeLeft(25*60);
+    if(beepRef.current){ beepRef.current.pause(); beepRef.current.currentTime=0; }
+  };
+
+  const adjustLen = (type, delta) => {
+    if (running) return;
+    if (type === 'break') {
+      setBreakLen(l => {
+        const v = l + delta; if(v<1||v>60) return l; return v; });
+    } else {
+      setSessionLen(l => {
+        const v = l + delta; if(v<1||v>60) return l; setTimeLeft(v*60); return v; });
+    }
+  };
+
+  const toggle = () => {
+    if (running) { clearTimer(); setRunning(false); }
+    else { startInterval(); setRunning(true); }
+  };
+
+  useEffect(() => () => clearTimer(), []); // cleanup
+
+  return (
+    React.createElement('div', {id:'clock'},
+      React.createElement('h2',{className:'text-center mb-4'},'25 + 5 Clock'),
+      React.createElement('div',{className:'d-flex justify-content-between mb-3'},
+        /* Break */
+        React.createElement('div',{className:'text-center'},
+          React.createElement('div',{id:'break-label',className:'fw-bold'},'Break Length'),
+          React.createElement('div',{className:'d-flex align-items-center gap-2 mt-2'},
+            React.createElement('button',{id:'break-decrement',className:'btn btn-secondary btn-sm',onClick:()=>adjustLen('break',-1)},'−'),
+            React.createElement('span',{id:'break-length',className:'h4 m-0'},breakLen),
+            React.createElement('button',{id:'break-increment',className:'btn btn-secondary btn-sm',onClick:()=>adjustLen('break',1)},'+')
+          )
+        ),
+        /* Session */
+        React.createElement('div',{className:'text-center'},
+          React.createElement('div',{id:'session-label',className:'fw-bold'},'Session Length'),
+          React.createElement('div',{className:'d-flex align-items-center gap-2 mt-2'},
+            React.createElement('button',{id:'session-decrement',className:'btn btn-secondary btn-sm',onClick:()=>adjustLen('session',-1)},'−'),
+            React.createElement('span',{id:'session-length',className:'h4 m-0'},sessionLen),
+            React.createElement('button',{id:'session-increment',className:'btn btn-secondary btn-sm',onClick:()=>adjustLen('session',1)},'+')
+          )
+        )
+      ),
+      React.createElement('div',{className:'bg-dark rounded p-3 text-center mb-3'},
+        React.createElement('div',{id:'timer-label',className:'h5'},mode),
+        React.createElement('div',{id:'time-left'},format(timeLeft))
+      ),
+      React.createElement('div',{className:'d-flex justify-content-center gap-3'},
+        React.createElement('button',{id:'start_stop',className:'btn btn-success',onClick:toggle}, running?'Pause':'Start'),
+        React.createElement('button',{id:'reset',className:'btn btn-danger',onClick:reset},'Reset')
+      ),
+      React.createElement('audio',{id:'beep',ref:beepRef,src:'https://cdn.freecodecamp.org/testable-projects-fcc/audio/BeepSound.wav',preload:'auto'})
+    )
+  );
+}
+
+ReactDOM.render(React.createElement(Clock), document.getElementById('root'));
+</script>
+<script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+</body>
+</html>
